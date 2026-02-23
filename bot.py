@@ -1,15 +1,14 @@
 import os
 import requests
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 if not BOT_TOKEN:
-    raise ValueError("توکن ربات پیدا نشد! BOT_TOKEN را در تنظیمات Render اضافه کن.")
+    raise ValueError("توکن ربات پیدا نشد! BOT_TOKEN را در Render تنظیم کن.")
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("سلام! متن انگلیسی رو بفرست تا ترجمه کنم به فارسی.")
+def start(update, context):
+    update.message.reply_text("سلام! متن انگلیسی رو بفرست تا ترجمه کنم به فارسی.")
 
 def translate_text(text):
     url = "https://api.mymemory.translated.net/get"
@@ -17,14 +16,20 @@ def translate_text(text):
     response = requests.get(url, params=params).json()
     return response["responseData"]["translatedText"]
 
-async def translate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def translate(update, context):
     text = update.message.text
     translated = translate_text(text)
-    await update.message.reply_text(translated)
+    update.message.reply_text(translated)
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, translate))
+def main():
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
 
-print("Bot is running...")
-app.run_polling()
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, translate))
+
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == "__main__":
+    main()
