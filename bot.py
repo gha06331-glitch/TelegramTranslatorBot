@@ -1,7 +1,7 @@
 import os
 import requests
 from flask import Flask, request
-from google import genai
+import google.generativeai as genai # تغییر 1: وارد کردن کتابخانه جدید
 
 app = Flask(__name__)
 
@@ -10,14 +10,14 @@ GEMINI_KEY = os.getenv("GEMINI_KEY")
 
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-client = genai.Client(api_key=GEMINI_KEY)
+# تغییر 2: پیکربندی API Key به روش جدید
+genai.configure(api_key=GEMINI_KEY)
 
 def ai_chat(user_text):
     try:
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=user_text
-        )
+        # تغییر 3: ایجاد شیء مدل و فراخوانی generate_content به روش جدید
+        model = genai.GenerativeModel("gemini-1.5-flash") # میتونی اینجا "gemini-pro" هم بذاری اگه 1.5-flash کار نکرد
+        response = model.generate_content(user_text)
         return response.text
     except Exception as e:
         print("AI Error:", e)
