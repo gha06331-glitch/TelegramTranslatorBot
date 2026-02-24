@@ -1,24 +1,33 @@
 import os
 import requests
 from flask import Flask, request
-import google.generativeai as genai
 
 app = Flask(__name__)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-GEMINI_KEY = os.getenv("GEMINI_KEY")
+DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY")
 
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-# پیکربندی API Key به روش جدید
-genai.configure(api_key=GEMINI_KEY)
-
 def ai_chat(user_text):
     try:
-        # تغییر مهم: استفاده از "gemini-pro" به جای "gemini-1.5-flash"
-        model = genai.GenerativeModel("gemini-pro") 
-        response = model.generate_content(user_text)
-        return response.text
+        url = "https://api.deepseek.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {DEEPSEEK_KEY}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "user", "content": user_text}
+            ]
+        }
+
+        r = requests.post(url, headers=headers, json=data)
+        r.raise_for_status()
+
+        return r.json()["choices"][0]["message"]["content"]
+
     except Exception as e:
         print("AI Error:", e)
         return "❌ خطا در ارتباط با هوش مصنوعی"
