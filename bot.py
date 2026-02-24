@@ -16,14 +16,14 @@ def translate(text):
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
-    print("Received data:", data)  # لاگ برای بررسی
+    print("Received data:", data)
 
     if "message" in data and "text" in data["message"]:
         chat_id = data["message"]["chat"]["id"]
         text = data["message"]["text"]
 
         translated = translate(text)
-        print("Translated:", translated)  # لاگ ترجمه
+        print("Translated:", translated)
 
         send_url = f"{BASE_URL}/sendMessage"
         payload = {
@@ -32,7 +32,7 @@ def webhook():
         }
 
         r = requests.get(send_url, params=payload)
-        print("Send response:", r.text)  # لاگ ارسال پیام
+        print("Send response:", r.text)
 
     return "ok"
 
