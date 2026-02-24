@@ -1,35 +1,36 @@
 import os
 import requests
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from flask import Flask, request
+
+app = Flask(__name__)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-if not BOT_TOKEN:
-    raise ValueError("توکن ربات پیدا نشد! BOT_TOKEN را در Render تنظیم کن.")
-
-def start(update, context):
-    update.message.reply_text("سلام! متن انگلیسی رو بفرست تا ترجمه کنم به فارسی.")
-
-def translate_text(text):
+def translate(text):
     url = "https://api.mymemory.translated.net/get"
     params = {"q": text, "langpair": "en|fa"}
-    response = requests.get(url, params=params).json()
-    return response["responseData"]["translatedText"]
+    r = requests.get(url, params=params).json()
+    return r["responseData"]["translatedText"]
 
-def translate(update, context):
-    text = update.message.text
-    translated = translate_text(text)
-    update.message.reply_text(translated)
+@app.route("/", methods=["POST"])
+def webhook():
+    data = request.get_json()
+    chat_id = data["message"]["chat"]["id"]
+    text = data["message"]["text"]
 
-def main():
-    updater = Updater(BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
+    translated = translate(text)
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, translate))
+    requests.get(f"{BASE_URL}/sendMessage", params={
+        "chat_id": chat_id,
+        "text": translated
+    })
 
-    updater.start_polling()
-    updater.idle()
+    return "ok"
+
+@app.route("/")
+def home():
+    return "Bot is running"
 
 if __name__ == "__main__":
-    main()
+    app.run(host="0.0.0.0", port=10000)
