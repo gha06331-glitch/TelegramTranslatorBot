@@ -7,43 +7,74 @@ app = Flask(__name__)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-def translate(text):
+def translate(text, target_lang):
     url = "https://api.mymemory.translated.net/get"
-    params = {"q": text, "langpair": "en|fa"}
+    params = {"q": text, "langpair": f"auto|{target_lang}"}
     r = requests.get(url, params=params).json()
     return r["responseData"]["translatedText"]
 
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json(silent=True)
-    print("Raw data:", data)
+    print("Raw data:", data, flush=True)
 
     if not data:
         return "no data"
 
-    message = data.get("message")
-    if not message:
-        print("No message field")
+    # -------------------------
+    # 1) اگر پیام معمولی بود
+    # -------------------------
+    if "message" in data:
+        chat_id = data["message"]["chat"]["id"]
+        text = data["message"].get("text")
+
+        if not text:
+            return "ok"
+
+        # دکمه‌های شیشه‌ای
+        keyboard = {
+            "inline_keyboard": [
+                [
+                    {"text": "🇮🇷 ترجمه به فارسی", "callback_data": f"fa|{text}"},
+                    {"text": "🇬🇧 ترجمه به انگلیسی", "callback_data": f"en|{text}"}
+                ],
+                [
+                    {"text": "🇹🇷 ترکی", "callback_data": f"tr|{text}"},
+                    {"text": "🇸🇦 عربی", "callback_data": f"ar|{text}"}
+                ]
+            ]
+        }
+
+        send_url = f"{BASE_URL}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": "ترجمه به کدوم زبان؟",
+            "reply_markup": keyboard
+        }
+
+        requests.post(send_url, json=payload)
         return "ok"
 
-    text = message.get("text")
-    chat_id = message["chat"]["id"]
+    # -------------------------
+    # 2) اگر دکمه شیشه‌ای کلیک شد
+    # -------------------------
+    if "callback_query" in data:
+        query = data["callback_query"]
+        chat_id = query["message"]["chat"]["id"]
+        callback_data = query["data"]
 
-    if not text:
-        print("No text found")
+        lang, text = callback_data.split("|", 1)
+
+        translated = translate(text, lang)
+
+        send_url = f"{BASE_URL}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": translated
+        }
+
+        requests.post(send_url, json=payload)
         return "ok"
-
-    translated = translate(text)
-    print("Translated:", translated)
-
-    send_url = f"{BASE_URL}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": translated
-    }
-
-    r = requests.get(send_url, params=payload)
-    print("Send response:", r.text)
 
     return "ok"
 
