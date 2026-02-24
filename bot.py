@@ -16,15 +16,23 @@ def translate(text):
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
-    chat_id = data["message"]["chat"]["id"]
-    text = data["message"]["text"]
+    print("Received data:", data)  # لاگ برای بررسی
 
-    translated = translate(text)
+    if "message" in data and "text" in data["message"]:
+        chat_id = data["message"]["chat"]["id"]
+        text = data["message"]["text"]
 
-    requests.get(f"{BASE_URL}/sendMessage", params={
-        "chat_id": chat_id,
-        "text": translated
-    })
+        translated = translate(text)
+        print("Translated:", translated)  # لاگ ترجمه
+
+        send_url = f"{BASE_URL}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": translated
+        }
+
+        r = requests.get(send_url, params=payload)
+        print("Send response:", r.text)  # لاگ ارسال پیام
 
     return "ok"
 
@@ -33,4 +41,5 @@ def home():
     return "Bot is running"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
