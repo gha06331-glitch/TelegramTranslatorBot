@@ -1,7 +1,7 @@
 import os
 import requests
 from flask import Flask, request
-import google.genai as genai  # ← نسخه جدید
+import google.genai as genai
 
 app = Flask(__name__)
 
@@ -11,23 +11,19 @@ GEMINI_KEY = os.getenv("GEMINI_KEY")
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 # تنظیم کلید Gemini
-genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.Client(api_key=GEMINI_KEY)
 
-# -------------------------
-# تابع چت با هوش مصنوعی
-# -------------------------
 def ai_chat(user_text):
     try:
-        response = model.generate_content(user_text)
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=user_text
+        )
         return response.text
     except Exception as e:
         print("AI Error:", e)
         return "❌ خطا در ارتباط با هوش مصنوعی"
 
-# -------------------------
-# وبهوک
-# -------------------------
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json(silent=True)
@@ -43,10 +39,8 @@ def webhook():
         if not text:
             return "ok"
 
-        # ارسال متن به هوش مصنوعی
         reply = ai_chat(text)
 
-        # ارسال پاسخ به کاربر
         requests.post(f"{BASE_URL}/sendMessage", json={
             "chat_id": chat_id,
             "text": reply
