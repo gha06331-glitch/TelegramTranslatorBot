@@ -12,8 +12,14 @@ BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 # -------------------------
 def detect_language(text):
     url = "https://libretranslate.de/detect"
-    response = requests.post(url, data={"q": text}).json()
-    return response[0]["language"]  # مثل en, fa, ar, tr
+    try:
+        response = requests.post(url, data={"q": text})
+        if response.text.strip() == "":
+            return "auto"
+        data = response.json()
+        return data[0]["language"]
+    except:
+        return "auto"
 
 # -------------------------
 # ترجمه
@@ -26,8 +32,14 @@ def translate(text, source_lang, target_lang):
         "target": target_lang,
         "format": "text"
     }
-    response = requests.post(url, data=payload).json()
-    return response["translatedText"]
+    try:
+        response = requests.post(url, data=payload)
+        if response.text.strip() == "":
+            return "❌ سرویس ترجمه پاسخ نداد"
+        data = response.json()
+        return data.get("translatedText", "❌ ترجمه انجام نشد")
+    except:
+        return "❌ خطا در ترجمه"
 
 @app.route("/", methods=["POST"])
 def webhook():
@@ -47,7 +59,16 @@ def webhook():
         if not text:
             return "ok"
 
-        # تشخیص زبان متن
+        # اگر متن خیلی کوتاه بود
+        if len(text.strip()) < 2:
+            send_url = f"{BASE_URL}/sendMessage"
+            requests.post(send_url, json={
+                "chat_id": chat_id,
+                "text": "❗ لطفاً متن طولانی‌تری بفرست"
+            })
+            return "ok"
+
+        # تشخیص زبان
         detected_lang = detect_language(text)
         print("Detected:", detected_lang, flush=True)
 
@@ -66,13 +87,11 @@ def webhook():
         }
 
         send_url = f"{BASE_URL}/sendMessage"
-        payload = {
+        requests.post(send_url, json={
             "chat_id": chat_id,
             "text": "ترجمه به کدوم زبان؟",
             "reply_markup": keyboard
-        }
-
-        requests.post(send_url, json=payload)
+        })
         return "ok"
 
     # -------------------------
@@ -88,12 +107,10 @@ def webhook():
         translated = translate(text, source_lang, target_lang)
 
         send_url = f"{BASE_URL}/sendMessage"
-        payload = {
+        requests.post(send_url, json={
             "chat_id": chat_id,
             "text": translated
-        }
-
-        requests.post(send_url, json=payload)
+        })
         return "ok"
 
     return "ok"
