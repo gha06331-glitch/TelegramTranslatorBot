@@ -11,33 +11,38 @@ BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 # تشخیص زبان
 # -------------------------
 def detect_language(text):
-    url = "https://libretranslate.de/detect"
     try:
-        response = requests.post(url, data={"q": text})
-        if response.text.strip() == "":
+        r = requests.post("https://libretranslate.de/detect", data={"q": text})
+        if r.text.strip() == "":
             return "auto"
-        data = response.json()
-        return data[0]["language"]
+        return r.json()[0]["language"]
     except:
         return "auto"
 
 # -------------------------
-# ترجمه
+# ترجمه (با دو API)
 # -------------------------
 def translate(text, source_lang, target_lang):
-    url = "https://libretranslate.de/translate"
-    payload = {
-        "q": text,
-        "source": source_lang,
-        "target": target_lang,
-        "format": "text"
-    }
+    # API اول: LibreTranslate
     try:
-        response = requests.post(url, data=payload)
-        if response.text.strip() == "":
-            return "❌ سرویس ترجمه پاسخ نداد"
-        data = response.json()
-        return data.get("translatedText", "❌ ترجمه انجام نشد")
+        payload = {
+            "q": text,
+            "source": source_lang,
+            "target": target_lang,
+            "format": "text"
+        }
+        r = requests.post("https://libretranslate.de/translate", data=payload)
+        if r.text.strip() != "":
+            return r.json().get("translatedText", None)
+    except:
+        pass
+
+    # API دوم: MyMemory (پشتیبان)
+    try:
+        url = "https://api.mymemory.translated.net/get"
+        params = {"q": text, "langpair": f"{source_lang}|{target_lang}"}
+        r = requests.get(url, params=params).json()
+        return r["responseData"]["translatedText"]
     except:
         return "❌ خطا در ترجمه"
 
@@ -59,35 +64,25 @@ def webhook():
         if not text:
             return "ok"
 
-        # اگر متن خیلی کوتاه بود
-        if len(text.strip()) < 2:
-            send_url = f"{BASE_URL}/sendMessage"
-            requests.post(send_url, json={
-                "chat_id": chat_id,
-                "text": "❗ لطفاً متن طولانی‌تری بفرست"
-            })
-            return "ok"
-
         # تشخیص زبان
-        detected_lang = detect_language(text)
-        print("Detected:", detected_lang, flush=True)
+        detected = detect_language(text)
+        print("Detected:", detected, flush=True)
 
         # دکمه‌های شیشه‌ای
         keyboard = {
             "inline_keyboard": [
                 [
-                    {"text": "🇮🇷 فارسی", "callback_data": f"fa|{detected_lang}|{text}"},
-                    {"text": "🇬🇧 انگلیسی", "callback_data": f"en|{detected_lang}|{text}"}
+                    {"text": "🇮🇷 فارسی", "callback_data": f"fa|{detected}|{text}"},
+                    {"text": "🇬🇧 انگلیسی", "callback_data": f"en|{detected}|{text}"}
                 ],
                 [
-                    {"text": "🇹🇷 ترکی", "callback_data": f"tr|{detected_lang}|{text}"},
-                    {"text": "🇸🇦 عربی", "callback_data": f"ar|{detected_lang}|{text}"}
+                    {"text": "🇹🇷 ترکی", "callback_data": f"tr|{detected}|{text}"},
+                    {"text": "🇸🇦 عربی", "callback_data": f"ar|{detected}|{text}"}
                 ]
             ]
         }
 
-        send_url = f"{BASE_URL}/sendMessage"
-        requests.post(send_url, json={
+        requests.post(f"{BASE_URL}/sendMessage", json={
             "chat_id": chat_id,
             "text": "ترجمه به کدوم زبان؟",
             "reply_markup": keyboard
@@ -98,16 +93,13 @@ def webhook():
     # کلیک روی دکمه شیشه‌ای
     # -------------------------
     if "callback_query" in data:
-        query = data["callback_query"]
-        chat_id = query["message"]["chat"]["id"]
-        callback_data = query["data"]
+        q = data["callback_query"]
+        chat_id = q["message"]["chat"]["id"]
+        target, source, text = q["data"].split("|", 2)
 
-        target_lang, source_lang, text = callback_data.split("|", 2)
+        translated = translate(text, source, target)
 
-        translated = translate(text, source_lang, target_lang)
-
-        send_url = f"{BASE_URL}/sendMessage"
-        requests.post(send_url, json={
+        requests.post(f"{BASE_URL}/sendMessage", json={
             "chat_id": chat_id,
             "text": translated
         })
