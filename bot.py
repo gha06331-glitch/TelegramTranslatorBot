@@ -1,7 +1,7 @@
 import os
 import requests
 from flask import Flask, request
-import google.generativeai as genai
+import google.genai as genai  # ← نسخه جدید
 
 app = Flask(__name__)
 
