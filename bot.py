@@ -7,11 +7,27 @@ app = Flask(__name__)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-def translate(text, target_lang):
-    url = "https://api.mymemory.translated.net/get"
-    params = {"q": text, "langpair": f"auto|{target_lang}"}
-    r = requests.get(url, params=params).json()
-    return r["responseData"]["translatedText"]
+# -------------------------
+# تشخیص زبان
+# -------------------------
+def detect_language(text):
+    url = "https://libretranslate.de/detect"
+    response = requests.post(url, data={"q": text}).json()
+    return response[0]["language"]  # مثل en, fa, ar, tr
+
+# -------------------------
+# ترجمه
+# -------------------------
+def translate(text, source_lang, target_lang):
+    url = "https://libretranslate.de/translate"
+    payload = {
+        "q": text,
+        "source": source_lang,
+        "target": target_lang,
+        "format": "text"
+    }
+    response = requests.post(url, data=payload).json()
+    return response["translatedText"]
 
 @app.route("/", methods=["POST"])
 def webhook():
@@ -22,7 +38,7 @@ def webhook():
         return "no data"
 
     # -------------------------
-    # 1) اگر پیام معمولی بود
+    # پیام معمولی
     # -------------------------
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
@@ -31,16 +47,20 @@ def webhook():
         if not text:
             return "ok"
 
+        # تشخیص زبان متن
+        detected_lang = detect_language(text)
+        print("Detected:", detected_lang, flush=True)
+
         # دکمه‌های شیشه‌ای
         keyboard = {
             "inline_keyboard": [
                 [
-                    {"text": "🇮🇷 ترجمه به فارسی", "callback_data": f"fa|{text}"},
-                    {"text": "🇬🇧 ترجمه به انگلیسی", "callback_data": f"en|{text}"}
+                    {"text": "🇮🇷 فارسی", "callback_data": f"fa|{detected_lang}|{text}"},
+                    {"text": "🇬🇧 انگلیسی", "callback_data": f"en|{detected_lang}|{text}"}
                 ],
                 [
-                    {"text": "🇹🇷 ترکی", "callback_data": f"tr|{text}"},
-                    {"text": "🇸🇦 عربی", "callback_data": f"ar|{text}"}
+                    {"text": "🇹🇷 ترکی", "callback_data": f"tr|{detected_lang}|{text}"},
+                    {"text": "🇸🇦 عربی", "callback_data": f"ar|{detected_lang}|{text}"}
                 ]
             ]
         }
@@ -56,16 +76,16 @@ def webhook():
         return "ok"
 
     # -------------------------
-    # 2) اگر دکمه شیشه‌ای کلیک شد
+    # کلیک روی دکمه شیشه‌ای
     # -------------------------
     if "callback_query" in data:
         query = data["callback_query"]
         chat_id = query["message"]["chat"]["id"]
         callback_data = query["data"]
 
-        lang, text = callback_data.split("|", 1)
+        target_lang, source_lang, text = callback_data.split("|", 2)
 
-        translated = translate(text, lang)
+        translated = translate(text, source_lang, target_lang)
 
         send_url = f"{BASE_URL}/sendMessage"
         payload = {
