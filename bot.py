@@ -8,19 +8,41 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 # -------------------------
-# تشخیص زبان
+# تشخیص زبان (پایدار و بدون auto)
 # -------------------------
 def detect_language(text):
+    # 1) تلاش با LibreTranslate
     try:
         r = requests.post("https://libretranslate.de/detect", data={"q": text})
-        if r.text.strip() == "":
-            return "auto"
-        return r.json()[0]["language"]
+        if r.text.strip() != "":
+            lang = r.json()[0]["language"]
+            if lang != "auto":
+                return lang
     except:
-        return "auto"
+        pass
+
+    # 2) تشخیص دستی برای متن‌های کوتاه
+    # فارسی
+    if any("ا" <= ch <= "ی" for ch in text):
+        return "fa"
+
+    # عربی
+    if any("ء" <= ch <= "ي" for ch in text):
+        return "ar"
+
+    # انگلیسی
+    if any("a" <= ch.lower() <= "z" for ch in text):
+        return "en"
+
+    # ترکی
+    if any(ch in "çğıöşü" for ch in text.lower()):
+        return "tr"
+
+    # 3) پیش‌فرض
+    return "en"
 
 # -------------------------
-# ترجمه (با دو API)
+# ترجمه (با دو API برای پایداری)
 # -------------------------
 def translate(text, source_lang, target_lang):
     # API اول: LibreTranslate
@@ -33,7 +55,9 @@ def translate(text, source_lang, target_lang):
         }
         r = requests.post("https://libretranslate.de/translate", data=payload)
         if r.text.strip() != "":
-            return r.json().get("translatedText", None)
+            data = r.json()
+            if "translatedText" in data:
+                return data["translatedText"]
     except:
         pass
 
