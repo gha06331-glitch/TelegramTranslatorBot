@@ -1,7 +1,7 @@
 import os
 import requests
 from flask import Flask, request
-import google.genai as genai
+from google import genai
 
 app = Flask(__name__)
 
@@ -10,7 +10,6 @@ GEMINI_KEY = os.getenv("GEMINI_KEY")
 
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-# تنظیم کلید Gemini
 client = genai.Client(api_key=GEMINI_KEY)
 
 def ai_chat(user_text):
