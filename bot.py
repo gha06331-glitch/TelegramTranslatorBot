@@ -12,7 +12,7 @@ BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 # تنظیم کلید Gemini
 genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel("gemini-pro")
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 # -------------------------
 # تابع چت با هوش مصنوعی
@@ -21,7 +21,8 @@ def ai_chat(user_text):
     try:
         response = model.generate_content(user_text)
         return response.text
-    except:
+    except Exception as e:
+        print("AI Error:", e)
         return "❌ خطا در ارتباط با هوش مصنوعی"
 
 # -------------------------
