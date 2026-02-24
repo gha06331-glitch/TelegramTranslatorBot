@@ -13,31 +13,40 @@ def translate(text):
     r = requests.get(url, params=params).json()
     return r["responseData"]["translatedText"]
 
-# مسیر اصلی برای Webhook
 @app.route("/", methods=["POST"])
 def webhook():
-    data = request.get_json()
-    print("Received data:", data)
+    data = request.get_json(silent=True)
+    print("Raw data:", data)
 
-    if "message" in data and "text" in data["message"]:
-        chat_id = data["message"]["chat"]["id"]
-        text = data["message"]["text"]
+    if not data:
+        return "no data"
 
-        translated = translate(text)
-        print("Translated:", translated)
+    message = data.get("message")
+    if not message:
+        print("No message field")
+        return "ok"
 
-        send_url = f"{BASE_URL}/sendMessage"
-        payload = {
-            "chat_id": chat_id,
-            "text": translated
-        }
+    text = message.get("text")
+    chat_id = message["chat"]["id"]
 
-        r = requests.get(send_url, params=payload)
-        print("Send response:", r.text)
+    if not text:
+        print("No text found")
+        return "ok"
+
+    translated = translate(text)
+    print("Translated:", translated)
+
+    send_url = f"{BASE_URL}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": translated
+    }
+
+    r = requests.get(send_url, params=payload)
+    print("Send response:", r.text)
 
     return "ok"
 
-# صفحهٔ تست
 @app.route("/home")
 def home():
     return "Bot is running"
