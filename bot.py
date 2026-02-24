@@ -13,6 +13,7 @@ def translate(text):
     r = requests.get(url, params=params).json()
     return r["responseData"]["translatedText"]
 
+# مسیر اصلی برای Webhook
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
@@ -36,7 +37,8 @@ def webhook():
 
     return "ok"
 
-@app.route("/")
+# صفحهٔ تست
+@app.route("/home")
 def home():
     return "Bot is running"
 
